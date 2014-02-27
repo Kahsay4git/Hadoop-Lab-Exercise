@@ -1,0 +1,691 @@
+MapReduce :
+
+
+1)	From give list of numbers find out only first 10 numbers.
+
+Answer :
+
+-	First create a file with numbers (more than 10) like
+
+123
+245
+345
+123
+864
+345
+864
+095
+346
+088
+245
+543
+238
+098
+412
+088
+295
+435
+095
+170
+
+-	Put this file on HDFS
+-	Execute below program.  Pass two arguments to it.  First is HDS file path of above file and second is HDFS file path for output.  For output, don’t create directory, just give path.  Hadoop will automatically create output dir.
+-	After execution, in your output directory file with name part* will be created, which contains output of your program.
+
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+
+
+public class TopTen
+{
+	static int cnt = 0;
+	
+	public static class Map extends Mapper<LongWritable, Text, LongWritable, Text>
+	{
+		public void map(LongWritable key, Text value, Context ctxt)
+		{
+			try
+			{
+				if(cnt < 10)
+					ctxt.write(key, value);
+			}
+			catch (Exception e)
+			{
+				e.printStackTrace();
+			}
+			
+			cnt++;
+		}
+	}
+	
+	public static class Reduce extends Reducer<LongWritable, Text, LongWritable, Text>
+	{
+		public void reduce(LongWritable key, Text value, Context ctxt) throws Exception
+		{
+			ctxt.write(key, value);
+		}
+	}
+	
+	public static void main(String[] args) throws Exception
+	{
+		Configuration conf = new Configuration();
+		
+		Job job = new Job(conf, "TopTen");
+		job.setJarByClass(TopTen.class);
+		job.setMapperClass(Map.class);
+		job.setReducerClass(Reduce.class);
+		
+		job.setInputFormatClass(TextInputFormat.class);
+		job.setOutputFormatClass(TextOutputFormat.class);
+		
+		FileInputFormat.addInputPath(job, new Path(args[0]));
+		FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		
+		System.out.println(job.waitForCompletion(true));
+	}
+}
+
+ 
+2)	Given info about customer and price he paid for each purchase, find out total price paid by Customer.
+
+Answer : 
+
+Data set :
+
+	Pratap Fan 1500
+Sangram Fridge 20000
+Rahul Mobile 15000
+Kishor Furniture 55000
+Sangram Oven 7000
+Rahul Tablet 25000
+Pratap Camera 12000
+Sangram Laptop 67000
+Kishor AirConditioner 34000
+Pratap Printer 8000
+Sangram DinningTable 29000
+Rahul HomeTheater 18000
+Sangram DVDPlayer 3000
+
+Program :
+
+import java.io.IOException;
+import java.util.StringTokenizer;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+
+public class CustomerPrice
+{
+	public static class Map extends Mapper<LongWritable, Text, Text, IntWritable>
+	{
+		public void map(LongWritable key, Text value, Context ctxt) throws IOException, InterruptedException
+		{
+			String text = value.toString();
+			String []words = text.split(" ");
+			
+			ctxt.write(new Text(words[0]), new IntWritable(Integer.parseInt(words[2])));
+		}
+	}
+	
+	public static class Reduce extends Reducer<Text, IntWritable, Text, IntWritable>
+	{
+		public void reduce(Text key, Iterable<IntWritable> values, Context ctxt) throws IOException, InterruptedException
+		{
+			int sum = 0;
+			
+			for(IntWritable value : values)
+				sum = sum + value.get();
+			
+			ctxt.write(key, new IntWritable(sum));			
+		}
+	}
+	
+	public static void main(String[] args) throws Exception
+	{
+		Configuration conf = new Configuration();	
+		Job job = new Job(conf, "Customers Total Purchase");
+		
+		job.setJarByClass(FindDuplicate.class);
+		job.setMapperClass(Map.class);
+		job.setReducerClass(Reduce.class);
+		
+		job.setInputFormatClass(TextInputFormat.class);
+		//job.setOutputFormatClass(TextOutputFormat.class);
+		
+		job.setMapOutputKeyClass(Text.class);
+		job.setMapOutputValueClass(IntWritable.class);
+		
+		job.setOutputKeyClass(Text.class);
+		job.setOutputValueClass(IntWritable.class);
+		
+		FileInputFormat.addInputPath(job, new Path(args[0]));
+		FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		
+		System.out.println(job.waitForCompletion(true));
+		
+	}
+}
+	
+
+
+3)	Find out duplicate numbers from given list of numbers along with its frequency of occurrence.  Also display counter on web UI.
+
+Answer :
+
+Data Set :  You can use file created in first exercise.
+
+Program :
+
+import java.io.IOException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+
+public class FindDuplicate
+{
+	public static enum MyCounter {duplicateNumbers};
+	
+	public static class Map extends Mapper<LongWritable, Text, Text, Text>
+	{
+		public void map(LongWritable key, Text value, Context ctxt) throws IOException, InterruptedException
+		{
+			ctxt.write(value, new Text("abc"));
+		}
+	}
+	
+	public static class Reduce extends Reducer<Text, Text, Text, IntWritable>
+	{
+		public void reduce(Text key, Iterable<Text> values, Context ctxt)
+		{
+			try
+			{
+				int sum = 0;
+				
+				for(Text value : values)
+					sum++;
+				
+				if(sum > 1)
+				{
+					ctxt.write(key, new IntWritable(sum));
+					ctxt.getCounter(MyCounter.duplicateNumbers).increment(1);
+				}
+			}
+			catch (Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	public static void main(String[] args) throws Exception
+	{
+		Configuration conf = new Configuration();	
+		Job job = new Job(conf, "Find Duplicates");
+		
+		job.setJarByClass(FindDuplicate.class);
+		job.setMapperClass(Map.class);
+		job.setReducerClass(Reduce.class);
+		
+		job.setInputFormatClass(TextInputFormat.class);
+		//job.setOutputFormatClass(TextOutputFormat.class);
+		
+		job.setMapOutputKeyClass(Text.class);
+		job.setMapOutputValueClass(Text.class);
+		
+		job.setOutputKeyClass(Text.class);
+		job.setOutputValueClass(Text.class);
+		
+		FileInputFormat.addInputPath(job, new Path(args[0]));
+		FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		
+		System.out.println(job.waitForCompletion(true));
+	}
+}	
+	
+4)	Given list of friends for 10 people. Find out common friends between asked two people.  
+
+Answer :
+
+Data Set :
+
+A -> B C D
+B -> A C D E
+C -> A B D E
+D -> A B C E
+E -> B C D
+
+Program :
+
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Reducer.Context;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+
+public class CommonFriends
+{	
+	public static class Map extends Mapper<LongWritable, Text, Text, Text>
+	{
+		public void map(LongWritable key, Text value, Context ctxt) throws IOException, InterruptedException
+		{
+			String keyOp, valueOp = "";
+			
+			String str = value.toString();
+			String []tokens = str.split(" ");
+			
+			String start = tokens[0];
+			byte []startByte = start.getBytes("US-ASCII");
+			
+			String []values = new String[tokens.length - 2];
+			
+			for(int i=2, j=0; i<tokens.length; i++, j++)
+			{
+				values[j] = tokens[i];
+				valueOp += tokens[i];
+			}
+			
+			for(int i=0; i<values.length; i++)
+			{
+				byte []endByte = values[i].getBytes("US-ASCII");
+				
+				if(startByte[0] < endByte[0])			
+					keyOp = tokens[0] + values[i];
+				
+				else
+					keyOp = values[i] + tokens[0];
+
+				ctxt.write(new Text(keyOp), new Text(valueOp));
+			}
+		}
+	}
+	
+	public static class Reduce extends Reducer<Text, Text, Text, Text>
+	{
+		public void reduce(Text key, Iterable<Text> values, Context ctxt) throws IOException, InterruptedException
+		{
+			String []strArray = new String[2];
+			int i = 0;
+			
+			for(Text value : values)
+				strArray[i++] = value.toString();
+			
+			Set<Character> firstSet = toSet(strArray[0]);
+			firstSet.retainAll(toSet(strArray[1]));
+		    
+			ctxt.write(key, new Text(firstSet.toString()));
+		}
+		
+		public static Set<Character> toSet(String s) 
+		{
+		    Set<Character> ss = new HashSet<Character>(s.length());
+		    
+		    for (char c : s.toCharArray())
+		        ss.add(Character.valueOf(c));
+		    
+		    return ss;
+		}
+	}
+	
+	public static void main(String[] args) throws Exception
+	{
+		Configuration conf = new Configuration();
+		
+		Job job = new Job(conf, "Common Friends");
+		job.setJarByClass(CommonFriends.class);
+		job.setMapperClass(Map.class);
+		job.setReducerClass(Reduce.class);
+		
+		job.setInputFormatClass(TextInputFormat.class);
+
+		job.setMapOutputKeyClass(Text.class);
+		job.setMapOutputValueClass(Text.class);
+		
+		job.setOutputKeyClass(Text.class);
+		job.setOutputValueClass(Text.class);
+		
+		FileInputFormat.addInputPath(job, new Path(args[0]));
+		FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		
+		System.out.println(job.waitForCompletion(true));
+	}
+}
+
+5)	Search for employee.  Pass name of employee at run time and output details about him.  Create your own Input Format and Record Reader which will read Employee object.
+
+Answer :
+
+Data Set :
+
+Shivaji Jadhav%%%IT%%%25000%%%2009
+Prakash Kapse%%%COMP%%%32000%%%2005
+Ganesh Shinde%%%E&TC%%%20000%%%2011
+Kiran Patil%%%Mechanical%%%40000%%%2002
+Sharad Chavan%%%Civil%%%10000%%%2013
+
+Program :
+
+
+Employee.java :
+
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
+
+
+public class Employee implements Writable
+{
+	Text name;
+	Text dept;
+	IntWritable salary;
+	IntWritable joiningYear;
+		
+	@Override
+	public void readFields(DataInput in) throws IOException
+	{
+		this.name.readFields(in);
+		this.dept.readFields(in);
+		this.salary.readFields(in);
+		this.joiningYear.readFields(in);
+	}
+	
+	@Override
+	public void write(DataOutput out) throws IOException
+	{
+		this.name.write(out);
+		this.dept.write(out);
+		this.salary.write(out);
+		this.joiningYear.write(out);
+	}
+
+	public Text getName()
+	{
+		return name;
+	}
+
+	public void setName(Text name)
+	{
+		this.name = name;
+	}
+
+	public Text getDept()
+	{
+		return dept;
+	}
+
+	public void setDept(Text dept)
+	{
+		this.dept = dept;
+	}
+
+	public IntWritable getSalary()
+	{
+		return salary;
+	}
+
+	public void setSalary(IntWritable salary)
+	{
+		this.salary = salary;
+	}
+
+	public IntWritable getJoiningYear()
+	{
+		return joiningYear;
+	}
+
+	public void setJoiningYear(IntWritable joiningYear)
+	{
+		this.joiningYear = joiningYear;
+	}
+
+	@Override
+	public String toString()
+	{
+		return "Employee [name=" + name + ", dept=" + dept + ", salary=" + salary + ", joiningYear=" + joiningYear + "]";
+	}
+}
+
+
+MapInputRecord.java
+
+import java.io.IOException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+
+import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.RecordReader;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+import org.apache.hadoop.util.LineReader;
+
+
+public class MapInputRecord extends RecordReader<Text, Employee>
+{
+	private LineReader lineReader = null;
+	private Text key = null;
+	private Employee  value = null;
+	FileSystem fs = null;
+	FSDataInputStream fsDataInput = null;
+	
+	@Override
+	public void initialize(InputSplit split, TaskAttemptContext ctxt)
+			throws IOException, InterruptedException
+	{
+		Configuration config = ctxt.getConfiguration();
+		FileSplit fsplit = (FileSplit)split;
+		Path filePath = fsplit.getPath();
+		fs = filePath.getFileSystem(config);
+		fsDataInput = fs.open(filePath);
+		
+		lineReader = new LineReader(fsDataInput, config);
+		
+		if(key == null)
+			key = new Text();
+		
+		if(value == null)
+			value = new Employee();
+	}
+
+	@Override
+	public boolean nextKeyValue() throws IOException, InterruptedException
+	{
+		Text buffer  = new Text();
+		String str;
+		
+		int size = lineReader.readLine(buffer);
+		
+		if(size > 0)
+		{
+			str = buffer.toString();
+			System.out.println("Input : " + str);
+			
+			String []tokens = str.split("\\%\\%\\%");
+			System.out.println("Splitted String Size : " + tokens.length);
+			
+			int i=0;
+			//StringTokenizer tokens = new StringTokenizer(str, "$$");
+
+			if(tokens.length != 4)
+			{
+				System.out.println("Problematic Record : " + str);
+				return false;
+			}
+			
+			str = tokens[i++];
+			key.set(str);
+			value.setName(new Text(str));
+			
+			value.setDept(new Text(tokens[i++]));
+			value.setSalary(new IntWritable(Integer.parseInt(tokens[i++])));
+			value.setJoiningYear(new IntWritable(Integer.parseInt(tokens[i++])));
+		
+			return true;
+		}
+		
+		return false;
+	}
+
+	@Override
+	public Text getCurrentKey() throws IOException, InterruptedException
+	{
+		return key;
+	}
+
+	@Override
+	public Employee getCurrentValue() throws IOException, InterruptedException
+	{
+		return value;
+	}
+
+	@Override
+	public float getProgress() throws IOException, InterruptedException
+	{
+		return 0.0f;
+	}
+
+	@Override
+	public void close() throws IOException
+	{
+		if(lineReader != null)
+			lineReader.close();
+	}
+}
+
+
+MapInputFormat.java
+
+import java.io.IOException;
+
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.RecordReader;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+
+
+public class MapInputFormat extends FileInputFormat<Text, Employee>
+{
+	@Override
+	public RecordReader<Text, Employee> createRecordReader(InputSplit split,
+			TaskAttemptContext arg1) throws IOException, InterruptedException
+	{
+		return new MapInputRecord();
+	}
+}
+
+
+EmployeeDetails.java
+
+
+import java.io.IOException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class EmployeeDetails
+{
+	private static String empName;
+	private enum Record {emp1, emp2, emp3, emp4, emp5};
+	private static int cnt = 1;
+	
+	public static class Map extends Mapper<Text, Employee, Text, Employee>
+	{
+		public void map(Text key, Employee value, Context ctxt) throws IOException, InterruptedException
+		{
+			//if(empName.equalsIgnoreCase(key.toString()))
+				ctxt.write(key, value);
+		}
+	}
+	
+	public static class Reduce extends Reducer<Text, Employee, Text, Employee>
+	{
+		public void reduce(Text key, Employee value, Context ctxt) throws IOException, InterruptedException
+		{
+			ctxt.write(key, value);
+		}
+	}
+	
+	public static void main(String[] args) throws Exception
+	{
+		empName = args[2];
+		
+		System.out.println("Employee Name : " + empName);
+		
+		Configuration conf = new Configuration();	
+		Job job = new Job(conf, "Find Employee Details");
+		
+		job.setJarByClass(EmployeeDetails.class);
+		job.setMapperClass(Map.class);
+		job.setReducerClass(Reduce.class);
+		
+		job.setInputFormatClass(MapInputFormat.class);
+		//job.setOutputFormatClass(TextOutputFormat.class);
+		
+		job.setMapOutputKeyClass(Text.class);
+		job.setMapOutputValueClass(Employee.class);
+		
+		job.setOutputKeyClass(Text.class);
+		job.setOutputValueClass(Employee.class);
+		
+		FileInputFormat.addInputPath(job, new Path(args[0]));
+		FileOutputFormat.setOutputPath(job, new Path(args[1]));
+		
+		System.out.println(job.waitForCompletion(true));
+	}
+	
+}
