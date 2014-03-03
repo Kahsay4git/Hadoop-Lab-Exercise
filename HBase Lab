@@ -1,0 +1,124 @@
+HBase Excercie
+
+
+hadoop fs -mkdir home
+hadoop fs -mkdir home/cloudera
+hadoop fs -mkdir home/cloudera/hbasedata
+hadoop fs -put /home/cloudera/hbasedata/*.csv home/cloudera/hbasedata
+hadoop fs -ls home/cloudera/hbasedata
+
+
+hbase shell
+
+1. create 'titanic' , 'sv' , 'pc' , 'pi' 
+
+list
+
+scan 'titanic'
+
+put 'titanic' , '11111' , 'sv:sv' , 0
+
+scan 'titanic'
+
+get 'titanic' , '11111'
+
+put 'titanic' , '11111' , 'sv:sv' , 1
+
+put 'titanic' , '11111' , 'sv:sv' , 0
+
+scan 'titanic'
+
+get 'titanic' , '11111'
+
+scan 'titanic', {VERSIONS => 3 }
+
+describe 'titanic'
+
+
+2. PIG
+raw_data = LOAD 'home/cloudera/hbasedata/hbase.csv' USING PigStorage(',') 
+AS (id:long,sv:int,pc:int,nm:chararray,sex:chararray,age:int,sibsp:int,parch:int,tkt:chararray,fare:double,cabin:chararray);
+
+illustrate raw_data;
+
+partial_data = foreach raw_data generate id,sv,pc,nm,sex; 
+
+illustrate partial_data;
+
+3. store raw_data into 'hbase://titanic' using org.apache.pig.backend.hadoop.hbase.HBaseStorage('sv:sv pc:pc pi:nm pi:sex');
+
+
+HBase Shell
+4. deleteall 'titanic' , '99'
+
+5. delete 'titanic' , '98' , 'pc:pc'
+
+
+6. PIG
+partial_data = foreach raw_data generate id,age,sibsp,parch; 
+
+illustrate partial_data;
+
+store raw_data into 'hbase://titanic' using org.apache.pig.backend.hadoop.hbase.HBaseStorage('pi:age pi:sibsp pi:parch');
+
+7. Add another column family , with 4 versions  (same as the concept of timestamps)
+HBase Shell
+
+alter ‘titanic', NAME => ‘ti', VERSIONS => 4
+
+8. PIG
+
+partial_data = foreach raw_data generate id,tkt,fare,cabin; 
+
+illustrate partial_data;
+
+store raw_data into 'hbase://titanic' using org.apache.pig.backend.hadoop.hbase.HBaseStorage('ti:tkt ti:fare ti:cabin');
+
+9. HDFS
+Check how (find it out) the HFiles and Column Families are created in HDFS for this table. So start with hdfs fs -ls , drill down and find out.
+
+10. Delete a column family
+hbase shell
+
+alter ‘titanic', ‘delete’ => ‘pi'
+
+- then add the column family back again , like step 7 and data back again.
+
+This time add data for all the columns of column family pi using one store command in pig. So you will
+need to write a new foreach code.
+
+11. Try different other commands from http://learnhbase.wordpress.com/2013/03/02/hbase-shell-commands/
+
+12. Lets say your job is to create a histogram based on age versus ticket price
+So essentially you need to find out the average fare for all persons in buckets of age
+you can decide the size of your buckets, say the bucket size is 5.
+
+How will you design your table such that this can be done efficiently using a Pig Script
+
+Redesign your table.
+
+Remember
+
+a) Row keys must be unique
+
+b) Row keys should be created in such a way that when the Pig script runs, and internally creates MapReduce jobs, 
+there is an even split between all the mappers
+
+c) You might think of appending something to something in the row key. You can use CONCAT in foreach command when creating
+your data to be stored into your table
+
+d) Remember the discussion we had on how we can design to make the search easier
+
+e) You will need to design your table, load  data into it as shown before, then load data back from it using Pig script, and aggreagate
+it using Pig Scripts only.
+
+f) If there is no age, then that should come out as a separate bucket of NULL. It will have its own average age.
+
+13. PIG question (doing the same thing from hdfs file hbase.csv)
+
+
+14. Hive question (doing the same thing from hdfs file hbase.csv)
+
+
+15. MapReduce question (doing the same thing from hdfs file hbase.csv)
+
